@@ -1,0 +1,327 @@
+import java_cup.runtime.*;
+import java.util.*;
+
+parser code {:
+    public SymbolTable symbols = new SymbolTable();
+
+    public void checkSemanticResult() {
+        if (symbols.hasErrors()) {
+            System.out.println("Semantic check completed with errors.");
+        } else {
+            System.out.println("Scope check OK");
+        }
+    }
+:};
+
+terminal T_AND, T_BOOL, T_CHAR, T_DECL, T_DEF, T_ELSE, T_ELSIF, T_END, T_EXIT;
+terminal T_FALSE, T_FOR, T_HEAD, T_IF, T_INT, T_LIST, T_MOD, T_NEW, T_NIL, T_NILQ;
+terminal T_NOT, T_OR, T_REF, T_RETURN, T_SKIP, T_TAIL, T_TRUE;
+
+terminal T_LPAR, T_RPAR, T_LBRACKET, T_RBRACKET, T_COMMA, T_SEMICOLON, T_COLON, T_ASSIGN;
+terminal T_PLUS, T_MINUS, T_TIMES, T_DIV, T_EQ, T_NEQ, T_LT, T_GT, T_LE, T_GE, T_HASH;
+
+terminal UMINUS;
+
+terminal String T_ID, T_STRING, T_CHARCONST;
+terminal Integer T_NUM;
+
+non terminal Object program, def_list, defn;
+non terminal Object local_list, local_def;
+non terminal Object stmt_list, stmt, simple_stmt, simple_list, else_part, elsif_list;
+non terminal Object expr, lvalue, atom, call;
+non terminal Integer expr_list, opt_expr_list;
+
+non terminal ArrayList<String> id_list;
+non terminal Integer formal_list, opt_formal_list, formal;
+
+non terminal String type;
+non terminal String header;
+
+precedence right T_HASH;
+precedence left T_OR;
+precedence left T_AND;
+precedence nonassoc T_EQ, T_NEQ, T_LT, T_GT, T_LE, T_GE;
+precedence left T_PLUS, T_MINUS;
+precedence left T_TIMES, T_DIV, T_MOD;
+precedence right T_NOT;
+precedence right UMINUS;
+
+start with program;
+
+program ::= def_list ;
+
+//lista apo orismous sunarthsewn 
+def_list ::= def_list defn
+           | defn
+           ;
+
+//orismos domikhs omda: def epikefalida : topika + entoles end
+defn ::= T_DEF header:h T_COLON local_list stmt_list T_END
+{:
+    symbols.exitScope();
+:}
+;
+
+//H epikefalidda mporei na exei h na mhn exei typo epistrofhs
+header ::= T_ID:id
+    {:
+        SymbolInfo info = new SymbolInfo(
+            id,
+            "void",
+            new ArrayList<String>()
+        );
+
+        symbols.declare(id, info); // dhlwsi function sto symbol table
+        symbols.enterScope();// anoigma neou scope gia ta parameters kai ta local vars
+    :}
+    T_LPAR opt_formal_list:n T_RPAR
+    {:
+        SymbolInfo info = symbols.lookup(id);
+
+        if (info != null) {
+            info.paramCount = n;
+        }
+
+        RESULT = id;
+    :}
+
+    | type:t T_ID:id
+    {:
+        SymbolInfo info = new SymbolInfo(
+            id,
+            t,
+            new ArrayList<String>()
+        );
+
+        symbols.declare(id, info);
+        symbols.enterScope();
+    :}
+    T_LPAR opt_formal_list:n T_RPAR
+    {:
+        SymbolInfo info = symbols.lookup(id);
+
+        if (info != null) {
+            info.paramCount = n;
+        }
+
+        RESULT = id;
+    :}
+    ;
+
+
+formal_list ::= formal_list:n T_SEMICOLON formal:f
+    {:
+        RESULT = n + f;
+    :}
+    | formal:f
+    {:
+        RESULT = f;
+    :}
+    ;
+
+opt_formal_list ::= formal_list:n
+    {:
+        RESULT = n;
+    :}
+    |
+    {:
+        RESULT = 0;
+    :}
+    ;
+
+formal ::= type:t id_list:ids
+    {:
+        for (String name : ids) {
+            symbols.declare(name, new SymbolInfo(name, "parameter", t, false));
+        }
+
+        RESULT = ids.size();
+    :}
+    | T_REF type:t id_list:ids
+    {:
+        for (String name : ids) {
+            symbols.declare(name, new SymbolInfo(name, "parameter", t, true));
+        }
+
+        RESULT = ids.size();
+    :}
+    ;
+
+
+
+type ::= T_INT
+    {:
+        RESULT = "int";
+    :}
+    | T_BOOL
+    {:
+        RESULT = "bool";
+    :}
+    | T_CHAR
+    {:
+        RESULT = "char";
+    :}
+    | T_INT T_LBRACKET T_RBRACKET
+    {:
+        RESULT = "int[]";
+    :}
+    | T_CHAR T_LBRACKET T_RBRACKET
+    {:
+        RESULT = "char[]";
+    :}
+    | T_BOOL T_LBRACKET T_RBRACKET
+    {:
+        RESULT = "bool[]";
+    :}
+    | T_LIST T_LBRACKET type:t T_RBRACKET
+    {:
+        RESULT = "list[" + t + "]";
+    :}
+;
+
+id_list ::= id_list:l T_COMMA T_ID:id
+    {:
+        l.add(id);
+        RESULT = l;
+    :}
+    | T_ID:id
+    {:
+        ArrayList<String> list = new ArrayList<String>();
+        list.add(id);
+        RESULT = list;
+    :}
+;
+          
+
+//Topika stoixeia mesa se mia domiki omada
+local_list ::= local_list local_def
+             |
+             ;
+
+//Mia topiki dilosh mporei na einai nested def h dilosh metavlitwn
+local_def ::= defn
+        | type:t id_list:ids
+    {:
+        for (String name : ids) {
+            symbols.declare(name, new SymbolInfo(name, "variable", t, false));
+        }
+    :};
+            
+
+//lista entolwn
+stmt_list ::= stmt_list stmt
+            | stmt
+            ;
+
+//sto for epitrepetai lista aplwn entolwn xwrismenwn me komma
+simple_list ::= simple_list T_COMMA simple_stmt
+              | simple_stmt
+              ;
+
+//Entoles ths tony: aples, return, exit , if for
+stmt ::= simple_stmt
+       | T_RETURN expr
+       | T_EXIT
+       | T_IF expr T_COLON stmt_list elsif_list else_part T_END
+       | T_FOR simple_list T_SEMICOLON expr T_SEMICOLON simple_list T_COLON stmt_list T_END
+       ;
+
+elsif_list ::= elsif_list T_ELSIF expr T_COLON stmt_list
+             |
+             ;
+
+
+else_part ::= T_ELSE T_COLON stmt_list
+            |
+            ;
+
+//sto for epitrepetai lista aplwn entolwn xwrismenwn me komma 
+simple_stmt ::= T_SKIP
+              | lvalue T_ASSIGN expr
+              | call
+              ;
+
+//klhsh sunarthshs me h xwris parametrous
+call ::= T_ID:id T_LPAR T_RPAR
+    {:
+        SymbolInfo info = symbols.lookup(id);
+
+        if (info != null && info.isFunction) {
+            if (info.paramCount != 0) {
+                symbols.error("Function '" + id + "' expects " +
+                    info.paramCount + " arguments but got 0.");
+            }
+        }
+    :}
+    | T_ID:id T_LPAR expr_list:n T_RPAR
+    {:
+        SymbolInfo info = symbols.lookup(id);
+
+        if (info != null && info.isFunction) {
+            if (info.paramCount != n) {
+                symbols.error("Function '" + id + "' expects " +
+                    info.paramCount + " arguments but got " + n + ".");
+            }
+        }
+    :}
+    ;
+
+//ekfraseis xwrismenes me koma
+expr_list ::= expr_list:n T_COMMA expr
+{:
+    RESULT = n + 1;
+:}
+| expr
+{:
+    RESULT = 1;
+:}
+;
+
+//metavliti-stoixeio pinaka
+lvalue ::= T_ID:id
+{:
+    symbols.lookup(id);
+:}
+| T_ID:id T_LBRACKET expr T_RBRACKET
+{:
+    symbols.lookup(id);
+:}
+;
+
+//basikes morfes ekfrasewn
+atom ::= T_NUM
+       | T_STRING
+       | T_CHARCONST
+       | T_TRUE
+       | T_FALSE
+       | T_NIL
+       | lvalue
+       | call
+       | T_LPAR expr T_RPAR
+       | T_NEW T_INT T_LBRACKET expr T_RBRACKET
+       | T_NEW T_CHAR T_LBRACKET expr T_RBRACKET
+       | T_NEW T_BOOL T_LBRACKET expr T_RBRACKET
+       ;
+
+//ekfraseis me ari8mitikous, logikous kai sxesiakous telestes
+expr ::= atom
+       | T_MINUS expr %prec UMINUS
+       | T_NOT expr
+       | T_HEAD expr
+       | T_TAIL expr
+       | T_NILQ expr
+       | expr T_PLUS expr
+       | expr T_MINUS expr
+       | expr T_TIMES expr
+       | expr T_DIV expr
+       | expr T_MOD expr
+       | expr T_EQ expr
+       | expr T_NEQ expr
+       | expr T_LT expr
+       | expr T_GT expr
+       | expr T_LE expr
+       | expr T_GE expr
+       | expr T_AND expr
+       | expr T_OR expr
+       | expr T_HASH expr
+       ;

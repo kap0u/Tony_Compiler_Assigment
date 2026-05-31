@@ -1,0 +1,7 @@
+def main():
+  def f(int x; int y):
+    puti(x)
+  end
+
+  f(1)
+end
