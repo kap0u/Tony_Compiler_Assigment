@@ -1,0 +1,11 @@
+def main():
+
+  int x
+
+  x := 5
+
+  if x:
+    skip
+  end
+
+end

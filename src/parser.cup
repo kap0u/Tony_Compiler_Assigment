@@ -1,6 +1,11 @@
 import java_cup.runtime.*;
 import java.util.*;
 
+import symbol.*;
+import ast.*;
+import types.*;
+import errors.*;
+
 parser code {:
     public SymbolTable symbols = new SymbolTable();
 
@@ -25,17 +30,32 @@ terminal UMINUS;
 terminal String T_ID, T_STRING, T_CHARCONST;
 terminal Integer T_NUM;
 
-non terminal Object program, def_list, defn;
-non terminal Object local_list, local_def;
-non terminal Object stmt_list, stmt, simple_stmt, simple_list, else_part, elsif_list;
-non terminal Object expr, lvalue, atom, call;
-non terminal Integer expr_list, opt_expr_list;
+non terminal Program program;
+non terminal ArrayList<FuncDef> def_list;
+non terminal FuncDef defn;
+
+non terminal LocalList local_list;
+non terminal Object local_def;
+
+non terminal ArrayList<Stmt> stmt_list, simple_list;
+non terminal Stmt stmt, simple_stmt;
+non terminal BlockStmt else_part;
+non terminal ElsifList elsif_list;
+
+non terminal Expr expr, atom;
+non terminal LValue lvalue;
+non terminal CallExpr call;
+non terminal ArrayList<Expr> expr_list;
+
+non terminal Object opt_expr_list;
 
 non terminal ArrayList<String> id_list;
-non terminal Integer formal_list, opt_formal_list, formal;
 
-non terminal String type;
-non terminal String header;
+non terminal ArrayList<Param> formal_list, opt_formal_list;
+non terminal Param formal;
+
+non terminal String type, base_type;
+non terminal HeaderInfo header;
 
 precedence right T_HASH;
 precedence left T_OR;
@@ -48,108 +68,118 @@ precedence right UMINUS;
 
 start with program;
 
-program ::= def_list ;
+program ::= def_list:list
+    {:
+        RESULT = new Program(list);
+    :}
+    ;
 
 //lista apo orismous sunarthsewn 
-def_list ::= def_list defn
-           | defn
-           ;
+def_list ::= def_list:list defn:f
+    {:
+        list.add(f);
+        RESULT = list;
+    :}
+    | defn:f
+    {:
+        ArrayList<FuncDef> list = new ArrayList<FuncDef>();
+        list.add(f);
+        RESULT = list;
+    :}
+    ;
 
 //orismos domikhs omda: def epikefalida : topika + entoles end
-defn ::= T_DEF header:h T_COLON local_list stmt_list T_END
-{:
-    symbols.exitScope();
-:}
-;
+defn ::= T_DEF header:h T_COLON local_list:locals stmt_list:stmts T_END
+    {:
+        RESULT = new FuncDef(
+            h.name,
+            h.returnType,
+            h.params,
+            locals.varDecls,
+            locals.funcDefs,
+            new BlockStmt(stmts)
+        );
+    :}
+    ;
 
 //H epikefalidda mporei na exei h na mhn exei typo epistrofhs
-header ::= T_ID:id
+header ::= T_ID:id T_LPAR opt_formal_list:params T_RPAR
     {:
-        SymbolInfo info = new SymbolInfo(
+        RESULT = new HeaderInfo(
             id,
-            "void",
-            new ArrayList<String>()
+            BasicType.Void,
+            params
         );
-
-        symbols.declare(id, info); // dhlwsi function sto symbol table
-        symbols.enterScope();// anoigma neou scope gia ta parameters kai ta local vars
     :}
-    T_LPAR opt_formal_list:n T_RPAR
+    | type:t T_ID:id T_LPAR opt_formal_list:params T_RPAR
     {:
-        SymbolInfo info = symbols.lookup(id);
-
-        if (info != null) {
-            info.paramCount = n;
-        }
-
-        RESULT = id;
-    :}
-
-    | type:t T_ID:id
-    {:
-        SymbolInfo info = new SymbolInfo(
+        RESULT = new HeaderInfo(
             id,
-            t,
-            new ArrayList<String>()
+            TypeConverter.fromString(t),
+            params
         );
-
-        symbols.declare(id, info);
-        symbols.enterScope();
-    :}
-    T_LPAR opt_formal_list:n T_RPAR
-    {:
-        SymbolInfo info = symbols.lookup(id);
-
-        if (info != null) {
-            info.paramCount = n;
-        }
-
-        RESULT = id;
     :}
     ;
 
 
-formal_list ::= formal_list:n T_SEMICOLON formal:f
+formal_list ::= formal_list:list T_SEMICOLON formal:f
     {:
-        RESULT = n + f;
+        list.add(f);
+        RESULT = list;
     :}
     | formal:f
     {:
-        RESULT = f;
+        ArrayList<Param> list = new ArrayList<Param>();
+        list.add(f);
+        RESULT = list;
     :}
     ;
 
-opt_formal_list ::= formal_list:n
+opt_formal_list ::= formal_list:list
     {:
-        RESULT = n;
+        RESULT = list;
     :}
     |
     {:
-        RESULT = 0;
+        RESULT = new ArrayList<Param>();
     :}
     ;
 
 formal ::= type:t id_list:ids
     {:
-        for (String name : ids) {
-            symbols.declare(name, new SymbolInfo(name, "parameter", t, false));
-        }
-
-        RESULT = ids.size();
+        RESULT = new Param(
+            TypeConverter.fromString(t),
+            ids,
+            false
+        );
     :}
     | T_REF type:t id_list:ids
     {:
-        for (String name : ids) {
-            symbols.declare(name, new SymbolInfo(name, "parameter", t, true));
-        }
-
-        RESULT = ids.size();
+        RESULT = new Param(
+            TypeConverter.fromString(t),
+            ids,
+            true
+        );
     :}
     ;
 
 
 
-type ::= T_INT
+type ::= base_type:t
+    {:
+        RESULT = t;
+    :}
+    | type:t T_LBRACKET T_RBRACKET
+    {:
+        RESULT = t + "[]";
+    :}
+    | T_LIST T_LBRACKET type:t T_RBRACKET
+    {:
+        RESULT = "list[" + t + "]";
+    :}
+    ;
+
+    base_type ::= T_INT
     {:
         RESULT = "int";
     :}
@@ -161,23 +191,7 @@ type ::= T_INT
     {:
         RESULT = "char";
     :}
-    | T_INT T_LBRACKET T_RBRACKET
-    {:
-        RESULT = "int[]";
-    :}
-    | T_CHAR T_LBRACKET T_RBRACKET
-    {:
-        RESULT = "char[]";
-    :}
-    | T_BOOL T_LBRACKET T_RBRACKET
-    {:
-        RESULT = "bool[]";
-    :}
-    | T_LIST T_LBRACKET type:t T_RBRACKET
-    {:
-        RESULT = "list[" + t + "]";
-    :}
-;
+    ;
 
 id_list ::= id_list:l T_COMMA T_ID:id
     {:
@@ -194,134 +208,302 @@ id_list ::= id_list:l T_COMMA T_ID:id
           
 
 //Topika stoixeia mesa se mia domiki omada
-local_list ::= local_list local_def
-             |
-             ;
+local_list ::= local_list:list local_def:item
+    {:
+        if (item instanceof VarDecl) {
+            list.addVarDecl((VarDecl)item);
+        } else if (item instanceof FuncDef) {
+            list.addFuncDef((FuncDef)item);
+        }
+
+        RESULT = list;
+    :}
+    |
+    {:
+        RESULT = new LocalList();
+    :}
+    ;
 
 //Mia topiki dilosh mporei na einai nested def h dilosh metavlitwn
-local_def ::= defn
-        | type:t id_list:ids
+local_def ::= defn:f
     {:
-        for (String name : ids) {
-            symbols.declare(name, new SymbolInfo(name, "variable", t, false));
-        }
-    :};
+        RESULT = f;
+    :}
+    | type:t id_list:ids
+    {:
+        RESULT = new VarDecl(
+            TypeConverter.fromString(t),
+            ids
+        );
+    :}
+    ;
             
 
 //lista entolwn
-stmt_list ::= stmt_list stmt
-            | stmt
-            ;
+stmt_list ::= stmt_list:list stmt:s
+    {:
+        list.add(s);
+        RESULT = list;
+    :}
+    | stmt:s
+    {:
+        ArrayList<Stmt> list = new ArrayList<Stmt>();
+        list.add(s);
+        RESULT = list;
+    :}
+    ;
 
 //sto for epitrepetai lista aplwn entolwn xwrismenwn me komma
-simple_list ::= simple_list T_COMMA simple_stmt
-              | simple_stmt
-              ;
+simple_list ::= simple_list:list T_COMMA simple_stmt:s
+    {:
+        list.add(s);
+        RESULT = list;
+    :}
+    | simple_stmt:s
+    {:
+        ArrayList<Stmt> list = new ArrayList<Stmt>();
+        list.add(s);
+        RESULT = list;
+    :}
+    ;
 
 //Entoles ths tony: aples, return, exit , if for
-stmt ::= simple_stmt
-       | T_RETURN expr
-       | T_EXIT
-       | T_IF expr T_COLON stmt_list elsif_list else_part T_END
-       | T_FOR simple_list T_SEMICOLON expr T_SEMICOLON simple_list T_COLON stmt_list T_END
-       ;
+stmt ::= simple_stmt:s
+    {:
+        RESULT = s;
+    :}
+    | T_RETURN expr:e
+    {:
+        RESULT = new ReturnStmt(e);
+    :}
+    | T_EXIT
+    {:
+        RESULT = new ExitStmt();
+    :}
+    | T_IF expr:c T_COLON stmt_list:thenList elsif_list:elsifs else_part:elseBlock T_END
+    {:
+        RESULT = new IfStmt(
+            c,
+            new BlockStmt(thenList),
+            elsifs.getConditions(),
+            elsifs.getBlocks(),
+            elseBlock
+        );
+    :}
+    | T_FOR simple_list:init T_SEMICOLON expr:cond T_SEMICOLON simple_list:step T_COLON stmt_list:body T_END
+    {:
+        RESULT = new ForStmt(
+            init,
+            cond,
+            step,
+            new BlockStmt(body)
+        );
+    :}
+    ;
 
-elsif_list ::= elsif_list T_ELSIF expr T_COLON stmt_list
-             |
-             ;
+elsif_list ::= elsif_list:list T_ELSIF expr:c T_COLON stmt_list:stmts
+    {:
+        list.add(c, new BlockStmt(stmts));
+        RESULT = list;
+    :}
+    |
+    {:
+        RESULT = new ElsifList();
+    :}
+    ;
 
 
-else_part ::= T_ELSE T_COLON stmt_list
-            |
-            ;
+else_part ::= T_ELSE T_COLON stmt_list:stmts
+    {:
+        RESULT = new BlockStmt(stmts);
+    :}
+    |
+    {:
+        RESULT = null;
+    :}
+    ;
 
 //sto for epitrepetai lista aplwn entolwn xwrismenwn me komma 
 simple_stmt ::= T_SKIP
-              | lvalue T_ASSIGN expr
-              | call
-              ;
+    {:
+        RESULT = new SkipStmt();
+    :}
+    | lvalue:l T_ASSIGN expr:e
+    {:
+        RESULT = new AssignStmt(l, e);
+    :}
+    | call:c
+    {:
+        RESULT = new CallStmt(c);
+    :}
+    ;
 
 //klhsh sunarthshs me h xwris parametrous
 call ::= T_ID:id T_LPAR T_RPAR
     {:
-        SymbolInfo info = symbols.lookup(id);
-
-        if (info != null && info.isFunction) {
-            if (info.paramCount != 0) {
-                symbols.error("Function '" + id + "' expects " +
-                    info.paramCount + " arguments but got 0.");
-            }
-        }
+        RESULT = new CallExpr(id, new ArrayList<Expr>());
     :}
-    | T_ID:id T_LPAR expr_list:n T_RPAR
+    | T_ID:id T_LPAR expr_list:args T_RPAR
     {:
-        SymbolInfo info = symbols.lookup(id);
-
-        if (info != null && info.isFunction) {
-            if (info.paramCount != n) {
-                symbols.error("Function '" + id + "' expects " +
-                    info.paramCount + " arguments but got " + n + ".");
-            }
-        }
+        RESULT = new CallExpr(id, args);
     :}
     ;
 
 //ekfraseis xwrismenes me koma
-expr_list ::= expr_list:n T_COMMA expr
-{:
-    RESULT = n + 1;
-:}
-| expr
-{:
-    RESULT = 1;
-:}
-;
+expr_list ::= expr_list:list T_COMMA expr:e
+    {:
+        list.add(e);
+        RESULT = list;
+    :}
+    | expr:e
+    {:
+        ArrayList<Expr> list = new ArrayList<Expr>();
+        list.add(e);
+        RESULT = list;
+    :}
+    ;
 
 //metavliti-stoixeio pinaka
 lvalue ::= T_ID:id
-{:
-    symbols.lookup(id);
-:}
-| T_ID:id T_LBRACKET expr T_RBRACKET
-{:
-    symbols.lookup(id);
-:}
-;
+    {:
+        RESULT = new VarLValue(id);
+    :}
+    | lvalue:arr T_LBRACKET expr:index T_RBRACKET
+    {:
+        RESULT = new ArrayLValue(arr, index);
+    :}
+    ;
 
 //basikes morfes ekfrasewn
-atom ::= T_NUM
-       | T_STRING
-       | T_CHARCONST
-       | T_TRUE
-       | T_FALSE
-       | T_NIL
-       | lvalue
-       | call
-       | T_LPAR expr T_RPAR
-       | T_NEW T_INT T_LBRACKET expr T_RBRACKET
-       | T_NEW T_CHAR T_LBRACKET expr T_RBRACKET
-       | T_NEW T_BOOL T_LBRACKET expr T_RBRACKET
-       ;
+atom ::= T_NUM:n
+    {:
+        RESULT = new IntConst(n);
+    :}
+    | T_STRING:s
+    {:
+        RESULT = new StringConst(s);
+    :}
+    | T_CHARCONST:c
+    {:
+        RESULT = new CharConst(c);
+    :}
+    | T_TRUE
+    {:
+        RESULT = new BoolConst(true);
+    :}
+    | T_FALSE
+    {:
+        RESULT = new BoolConst(false);
+    :}
+    | T_NIL
+    {:
+        RESULT = new NilConst();
+    :}
+    | lvalue:l
+    {:
+        RESULT = l;
+    :}
+    | call:c
+    {:
+        RESULT = c;
+    :}
+    | T_LPAR expr:e T_RPAR
+    {:
+        RESULT = e;
+    :}
+    | T_NEW type:t T_LBRACKET expr:e T_RBRACKET
+    {:
+        RESULT = new NewArrayExpr(TypeConverter.fromString(t), e);
+    :}
+    ;
 
 //ekfraseis me ari8mitikous, logikous kai sxesiakous telestes
-expr ::= atom
-       | T_MINUS expr %prec UMINUS
-       | T_NOT expr
-       | T_HEAD expr
-       | T_TAIL expr
-       | T_NILQ expr
-       | expr T_PLUS expr
-       | expr T_MINUS expr
-       | expr T_TIMES expr
-       | expr T_DIV expr
-       | expr T_MOD expr
-       | expr T_EQ expr
-       | expr T_NEQ expr
-       | expr T_LT expr
-       | expr T_GT expr
-       | expr T_LE expr
-       | expr T_GE expr
-       | expr T_AND expr
-       | expr T_OR expr
-       | expr T_HASH expr
-       ;
+expr ::= atom:a
+    {:
+        RESULT = a;
+    :}
+    | T_MINUS expr:e
+    {:
+        RESULT = new UnaryOp(UnaryOp.Operator.NEG, e);
+    :}
+    %prec UMINUS
+
+    | T_PLUS expr:e
+    {:
+        RESULT = e;
+    :}
+    %prec UMINUS
+
+    | T_NOT expr:e
+    {:
+        RESULT = new UnaryOp(UnaryOp.Operator.NOT, e);
+    :}
+    | T_HEAD expr:e
+    {:
+        RESULT = new UnaryOp(UnaryOp.Operator.HEAD, e);
+    :}
+    | T_TAIL expr:e
+    {:
+        RESULT = new UnaryOp(UnaryOp.Operator.TAIL, e);
+    :}
+    | T_NILQ expr:e
+    {:
+        RESULT = new UnaryOp(UnaryOp.Operator.NILQ, e);
+    :}
+    | expr:l T_PLUS expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.PLUS, l, r);
+    :}
+    | expr:l T_MINUS expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.MINUS, l, r);
+    :}
+    | expr:l T_TIMES expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.TIMES, l, r);
+    :}
+    | expr:l T_DIV expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.DIV, l, r);
+    :}
+    | expr:l T_MOD expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.MOD, l, r);
+    :}
+    | expr:l T_EQ expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.EQ, l, r);
+    :}
+    | expr:l T_NEQ expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.NEQ, l, r);
+    :}
+    | expr:l T_LT expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.LT, l, r);
+    :}
+    | expr:l T_GT expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.GT, l, r);
+    :}
+    | expr:l T_LE expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.LE, l, r);
+    :}
+    | expr:l T_GE expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.GE, l, r);
+    :}
+    | expr:l T_AND expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.AND, l, r);
+    :}
+    | expr:l T_OR expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.OR, l, r);
+    :}
+    | expr:l T_HASH expr:r
+    {:
+        RESULT = new BinOp(BinOp.Operator.CONS, l, r);
+    :}
+    ;

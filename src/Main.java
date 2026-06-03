@@ -1,23 +1,43 @@
+import java.io.FileReader;
+import java_cup.runtime.Symbol;
 
-import java.io.*;
+import ast.*;
+import symbol.*;
+import errors.*;
 
 public class Main {
+
     public static void main(String[] args) {
-        if (args.length == 0) {
-            System.out.println("Usage: java Main <source-file>");
-            return;
+        if (args.length != 1) {
+            System.err.println("Usage: java Main <source-file>");
+            System.exit(1);
         }
 
         try {
-            Reader r = new FileReader(args[0]);
-            Lexer l = new Lexer(r);
-            parser p = new parser(l);
-            p.parse();
-            p.checkSemanticResult();
+            Lexer lexer = new Lexer(new FileReader(args[0]));
+            parser p = new parser(lexer);
+
+            Symbol result = p.parse();
+
+            Program program = (Program) result.value;
+
+            SymbolTable symbols = new SymbolTable();
+            program.sem(symbols);
+
+            if (symbols.hasErrors()) {
+                System.out.println("Semantic check completed with errors.");
+            } else {
+                System.out.println("Semantic check OK");
+            }
+
             System.out.println("Parse OK");
-            r.close();
+
+        } catch (SemanticException e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
         } catch (Exception e) {
             e.printStackTrace();
+            System.exit(1);
         }
     }
 }

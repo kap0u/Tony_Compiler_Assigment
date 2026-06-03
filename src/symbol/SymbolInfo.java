@@ -1,4 +1,7 @@
-import java.util.ArrayList;
+package symbol;
+
+import java.util.*;
+
 
 public class SymbolInfo {
     public String name;
