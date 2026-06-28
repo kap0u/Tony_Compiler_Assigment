@@ -1,9 +1,10 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
-import java.util.*;
+
 
 public class VarLValue extends LValue {
 
@@ -27,5 +28,19 @@ public class VarLValue extends LValue {
         } else {
             this.type = TypeConverter.fromString(info.type);
         }
+    }
+
+    @Override
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+
+        //diavazei th metavlith apo to local slot
+        out.emit("iload " + ctx.getLocal(name));
+    }
+
+    @Override
+    public void generateStoreJasmin(JasminWriter out, CodeGenContext ctx) {
+        
+        //apo8ikevei sth metavlith thn timi poy vrisketai panv sthn stack 
+        out.emit("istore " + ctx.getLocal(name));
     }
 }

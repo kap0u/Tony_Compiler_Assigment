@@ -1,5 +1,6 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
@@ -84,5 +85,26 @@ public class FuncDef extends ASTNode {
 
     public String getName() {
         return name;
+    }
+
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        if (!name.equals("main")) {
+            return;
+        }
+
+        out.emitRaw(".method public static main([Ljava/lang/String;)V");
+        out.emit(".limit stack 50");
+        out.emit(".limit locals 50");
+        out.emit("");
+
+        for (VarDecl varDecl : varDecls) {
+            varDecl.generateJasmin(out, ctx);
+        }
+        
+        body.generateJasmin(out, ctx);
+
+        out.emit("");
+        out.emit("return");
+        out.emitRaw(".end method");
     }
 }

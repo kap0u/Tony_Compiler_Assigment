@@ -24,6 +24,16 @@ public class Main {
             SymbolTable symbols = new SymbolTable();
             program.sem(symbols);
 
+            String jasminCode = program.generateJasmin();
+
+            //jasmin
+            java.nio.file.Files.writeString(
+                java.nio.file.Path.of("TonyProgram.j"),
+                jasminCode
+            );
+
+            System.out.println("Generated TonyProgram.j"); //jasmin
+
             if (symbols.hasErrors()) {
                 System.out.println("Semantic check completed with errors.");
             } else {

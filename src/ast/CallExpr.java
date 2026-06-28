@@ -1,11 +1,12 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
 import java.util.*;
 
-import java.util.*;
+
 
 public class CallExpr extends Expr {
 
@@ -43,4 +44,18 @@ public class CallExpr extends Expr {
 
         this.type = TypeConverter.fromString(info.type);
     }
+
+    @Override
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        if (name.equals("puti")) {
+            out.emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+            args.get(0).generateJasmin(out, ctx);
+            out.emit("invokevirtual java/io/PrintStream/println(I)V");
+            return;
+        }
+
+        throw new UnsupportedOperationException(
+            "Code generation for function '" + name + "' is not implemented yet."
+        );
+}
 }

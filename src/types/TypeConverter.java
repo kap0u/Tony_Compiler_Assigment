@@ -1,6 +1,5 @@
 package types;
 
-import java.util.*;
 
 public class TypeConverter {
 

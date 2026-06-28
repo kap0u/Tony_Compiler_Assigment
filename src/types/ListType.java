@@ -1,6 +1,6 @@
 package types;
 
-import java.util.*;
+
 
 public class ListType extends Type {
 

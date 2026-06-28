@@ -1,0 +1,5 @@
+def main():
+  int x
+  x := 2 + 3
+  puti(x)
+end

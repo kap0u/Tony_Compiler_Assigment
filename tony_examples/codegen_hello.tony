@@ -1,0 +1,3 @@
+def main():
+  puti(5)
+end

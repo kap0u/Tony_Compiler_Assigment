@@ -1,7 +1,7 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
-import types.*;
 import errors.*;
 import java.util.*;
 
@@ -20,4 +20,23 @@ public class Program extends ASTNode {
             f.sem(symbols);
         }
     }
+
+    //prosorina paragei programma poy typwnei 5
+    public String generateJasmin() {
+        JasminWriter out = new JasminWriter();
+        CodeGenContext ctx = new CodeGenContext();
+
+        out.emitRaw(".class public TonyProgram");
+        out.emitRaw(".super java/lang/Object");
+        out.emitRaw("");
+
+        for (FuncDef f : functions) {
+            if (f.getName().equals("main")) {
+                f.generateJasmin(out, ctx);
+            }
+        }
+
+        return out.getCode();
+    }
+
 }

@@ -1,9 +1,10 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
-import java.util.*;
+
 
 public class BinOp extends Expr {
 
@@ -125,4 +126,49 @@ public class BinOp extends Expr {
                 this.type = BasicType.Error;
         }
     }
+
+    @Override
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        /*
+        * Οι δυαδικές εκφράσεις στη JVM δουλεύουν με operand stack.
+        *
+        * Παράδειγμα για 2 + 3:
+        * iconst_2
+        * iconst_3
+        * iadd
+        *
+        * Δηλαδή πρώτα μπαίνει το αριστερό operand στη stack,
+        * μετά το δεξί operand, και μετά εκτελείται η αντίστοιχη πράξη.
+        */
+        left.generateJasmin(out, ctx);
+        right.generateJasmin(out, ctx);
+
+        switch (op) {
+            case PLUS:
+                out.emit("iadd");
+                break;
+
+            case MINUS:
+                out.emit("isub");
+                break;
+
+            case TIMES:
+                out.emit("imul");
+                break;
+
+            case DIV:
+                out.emit("idiv");
+                break;
+
+            case MOD:
+                out.emit("irem");
+                break;
+
+            default:
+                throw new UnsupportedOperationException(
+                    "Code generation for operator " + op + " is not implemented yet."
+                );
+        }
+    }
+    
 }

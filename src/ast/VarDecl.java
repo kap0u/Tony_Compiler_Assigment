@@ -1,5 +1,6 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
@@ -31,6 +32,12 @@ public class VarDecl extends ASTNode {
                 name,
                 new SymbolInfo(name, "variable", type.toString(), false)
             );
+        }
+    }
+
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        for (String name : names) {
+            ctx.declareLocal(name);
         }
     }
 }

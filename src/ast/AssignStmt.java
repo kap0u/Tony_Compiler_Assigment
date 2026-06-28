@@ -1,9 +1,10 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
-import java.util.*;
+
 
 public class AssignStmt extends Stmt {
 
@@ -40,5 +41,21 @@ public class AssignStmt extends Stmt {
                 exprType + " to " + targetType + "."
             );
         }
+    }
+
+   @Override
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        /*
+        *   Το αποτέλεσμά της μένει πάνω στη JVM operand stack.
+        */
+        out.emit("; assignment");
+
+        expr.generateJasmin(out, ctx);
+
+        /*
+        * apothikefsh ths timhs sto aristero l-value.
+        * gia aplh metavliti ayto prepei na paragei istore.
+        */
+        target.generateStoreJasmin(out, ctx);
     }
 }

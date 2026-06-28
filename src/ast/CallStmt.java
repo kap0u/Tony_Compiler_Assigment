@@ -1,9 +1,10 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
-import java.util.*;
+
 
 public class CallStmt extends Stmt {
 
@@ -21,5 +22,10 @@ public class CallStmt extends Stmt {
         if (!call.getType().equals(BasicType.Void) && !call.getType().isError()) {
             throw new TypeException("Function call used as statement must return void.");
         }
+    }
+
+    @Override
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        call.generateJasmin(out, ctx);
     }
 }

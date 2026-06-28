@@ -1,11 +1,12 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
 import java.util.*;
 
-import java.util.*;
+
 
 public class BlockStmt extends Stmt {
 
@@ -20,6 +21,13 @@ public class BlockStmt extends Stmt {
         // elegxos olwn twn entolwn me th seira
         for (Stmt stmt : statements) {
             stmt.sem(symbols);
+        }
+    }
+    
+    @Override
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        for (Stmt stmt : statements) {
+            stmt.generateJasmin(out , ctx);
         }
     }
 }
