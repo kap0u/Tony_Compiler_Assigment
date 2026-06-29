@@ -47,10 +47,32 @@ public class CallExpr extends Expr {
 
     @Override
     public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        
         if (name.equals("puti")) {
             out.emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
             args.get(0).generateJasmin(out, ctx);
             out.emit("invokevirtual java/io/PrintStream/println(I)V");
+            return;
+        }
+
+        if (name.equals("putb")) {
+            out.emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+            args.get(0).generateJasmin(out, ctx);
+            out.emit("invokevirtual java/io/PrintStream/println(Z)V");
+            return;
+        }
+
+        if (name.equals("putc")) {
+            out.emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+            args.get(0).generateJasmin(out, ctx);
+            out.emit("invokevirtual java/io/PrintStream/println(C)V");
+            return;
+        }
+
+        if (name.equals("puts")) {
+            out.emit("getstatic java/lang/System/out Ljava/io/PrintStream;");
+            args.get(0).generateJasmin(out, ctx);
+            out.emit("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V");
             return;
         }
 

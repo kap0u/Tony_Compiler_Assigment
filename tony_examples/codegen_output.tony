@@ -1,0 +1,6 @@
+def main():
+  puti(123)
+  putb(true)
+  putc('A')
+  puts("hello")
+end
