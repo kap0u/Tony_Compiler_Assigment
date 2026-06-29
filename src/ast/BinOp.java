@@ -129,17 +129,11 @@ public class BinOp extends Expr {
 
     @Override
     public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
-        /*
-        * Οι δυαδικές εκφράσεις στη JVM δουλεύουν με operand stack.
-        *
-        * Παράδειγμα για 2 + 3:
-        * iconst_2
-        * iconst_3
-        * iadd
-        *
-        * Δηλαδή πρώτα μπαίνει το αριστερό operand στη stack,
-        * μετά το δεξί operand, και μετά εκτελείται η αντίστοιχη πράξη.
-        */
+        
+         //Oi diadikes times sthn JVM leitoyrgoyn me operand stack .
+         //Paradeigma gia 2 + 3: iconst_2 iconst_3 iadd  prwta mpainei to aristero operandd sth stack meta to deji operand kai meta ekteleite h antistoixh praji 
+        
+        
         left.generateJasmin(out, ctx);
         right.generateJasmin(out, ctx);
 
@@ -164,11 +158,53 @@ public class BinOp extends Expr {
                 out.emit("irem");
                 break;
 
+            case EQ:
+                emitComparison(out, ctx, "if_icmpeq");
+                break;
+
+            case NEQ:
+                emitComparison(out, ctx, "if_icmpne");
+                break;
+
+            case LT:
+                emitComparison(out, ctx, "if_icmplt");
+                break;
+
+            case GT:
+                emitComparison(out, ctx, "if_icmpgt");
+                break;
+
+            case LE:
+                emitComparison(out, ctx, "if_icmple");
+                break;
+
+            case GE:
+                emitComparison(out, ctx, "if_icmpge");
+                break;
+
             default:
                 throw new UnsupportedOperationException(
                     "Code generation for operator " + op + " is not implemented yet."
                 );
         }
+    }
+
+    //paragei kwdika jasmin gia sugkriseis. H JVM sugkrisi me if_icm den afinei moni ths 0/1 sth stack gia ayto ftiaxv labels. An h sugkrisi isxuei vazw 1 sth stack alliws 0 sth stack.
+    private void emitComparison(JasminWriter out, CodeGenContext ctx, String instruction) {
+        String trueLabel = ctx.newLabel("cmp_true");
+        String endLabel = ctx.newLabel("cmp_end");
+
+        out.emit(instruction + " " + trueLabel);
+
+        // false case
+        out.emit("iconst_0");
+        out.emit("goto " + endLabel);
+
+        // true case
+        out.emitRaw(trueLabel + ":");
+        out.emit("iconst_1");
+
+        out.emitRaw(endLabel + ":");
     }
     
 }

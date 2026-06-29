@@ -1,0 +1,9 @@
+def main():
+  int x
+  x := 5
+  if x > 3:
+    puti(1)
+  else:
+    puti(0)
+  end
+end

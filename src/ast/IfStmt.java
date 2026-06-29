@@ -1,11 +1,11 @@
 package ast;
 
+import codegen.*;
 import symbol.*;
 import types.*;
 import errors.*;
 import java.util.*;
 
-import java.util.*;
 
 public class IfStmt extends Stmt {
 
@@ -53,5 +53,35 @@ public class IfStmt extends Stmt {
         if (elseBlock != null) {
             elseBlock.sem(symbols);
         }
+    }
+
+    @Override
+    public void generateJasmin(JasminWriter out, CodeGenContext ctx) {
+        /*
+        * To condition afinei 0 h 1 panw sth jvm operand stack 
+        * ifeq shmainei: an h timh einai 0 phgaine sto else Label 
+        */
+        String elseLabel = ctx.newLabel("if_else");
+        String endLabel = ctx.newLabel("if_end");
+
+        condition.generateJasmin(out, ctx);
+        out.emit("ifeq " + elseLabel);
+
+        /*
+        * Then block.
+        */
+        thenBlock.generateJasmin(out, ctx);
+        out.emit("goto " + endLabel);
+
+        /*
+        * Else block.
+        */
+        out.emitRaw(elseLabel + ":");
+
+        if (elseBlock != null) {
+            elseBlock.generateJasmin(out, ctx);
+        }
+
+        out.emitRaw(endLabel + ":");
     }
 }
