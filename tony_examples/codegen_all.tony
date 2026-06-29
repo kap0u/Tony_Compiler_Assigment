@@ -1,0 +1,50 @@
+def main():
+  int x
+  int y
+  int result
+  int i
+  int sum
+  bool ok
+
+  puts("Code generation demo")
+
+  x := 10
+  y := 3
+
+  result := x + y
+  puti(result)
+
+  result := x - y
+  puti(result)
+
+  result := x * y
+  puti(result)
+
+  result := x / y
+  puti(result)
+
+  result := x mod y
+  puti(result)
+
+  ok := x > y
+  putb(ok)
+
+  if x >= 10:
+    puts("if branch")
+    puti(1)
+  else:
+    puts("else branch")
+    puti(0)
+  end
+
+  sum := 0
+
+  for i := 1; i <= 5; i := i + 1:
+    sum := sum + i
+  end
+
+  puti(sum)
+
+  putc('A')
+  puts("done")
+end
